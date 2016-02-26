@@ -33,7 +33,7 @@ def main():
         # Read each line of node file
         if os.path.isfile(node_filename):
             with open(node_filename, "r") as infile:
-                nodes_d = {}
+                nodes = {}
                 names = []
                 for line in infile:
                     # Strip the line of newlines and tabs
@@ -68,29 +68,29 @@ def main():
                         table.append(row)
                     table = numpy.array(table)
                     # Write info to node
-                    this_node = nodes_d[name] if name in nodes_d else Node(name)
+                    this_node = nodes[name] if name in nodes else Node(name)
                     this_node.addCPT(table)
-                    # Generate parent nodes_d if they don't exist
+                    # Generate parent nodes if they don't exist
                     for parent in parents:
-                        parent_node = nodes_d[
-                            parent] if parent in nodes_d else Node(parent)
-                        # Add current node to the children of parent nodes_d
+                        parent_node = nodes[
+                            parent] if parent in nodes else Node(parent)
+                        # Add current node to the children of parent nodes
                         parent_node.addChild(this_node)
-                        nodes_d[parent] = parent_node
-                    nodes_d[name] = this_node
+                        nodes[parent] = parent_node
+                    nodes[name] = this_node
                     names.append(name)
 
                 # Convert the dictionary into a sorted array for processing
-                node_a = []
+                network = []
                 for name in names:
-                    if name in nodes_d:
-                        node_a.append(nodes_d[name])
+                    if name in nodes:
+                        network.append(nodes[name])
 
                 # Assign statuses in place
-                assignStatus(status_filename, node_a)
+                assignStatus(status_filename, network)
 
                 # Print out nodes
-                for n in node_a:
+                for n in network:
                     print "\nName: " + n.name
                     print "Status " + n.status
                     print "Children: " + ",".join(map(str, n.children()))
