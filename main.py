@@ -1,9 +1,10 @@
 import sys
 import os
-import numpy
 
 from node import Node
+from tabulate import tabulate
 
+DEBUG = True
 
 def assignStatus(filename, input_nodes):
     # Read each line of status file
@@ -62,11 +63,10 @@ def main():
                             result = i & mask
                             # Resolve the mask result to a 1 (true) or 0
                             # (false) and add it to the row
-                            row.append(1 if result else 0)
+                            row.append(bool(result))
                         # Add the CPT value to the end of the row
                         row.append(float(cptv[i]))
                         table.append(row)
-                    table = numpy.array(table)
                     # Write info to node
                     this_node = nodes[name] if name in nodes else Node(name)
                     this_node.addCPT(table)
@@ -89,13 +89,17 @@ def main():
                 # Assign statuses in place
                 assignStatus(status_filename, network)
 
-                # Print out nodes
-                for n in network:
-                    print "\nName: " + n.name
-                    print "Status " + n.status
-                    print "Children: " + ",".join(map(str, n.children()))
-                    print "Parents: " + ",".join(map(str, n.parents()))
-                    print "CPT: \n" + str(n.cpt) + "\n\n--------------------------------"
+                if DEBUG:
+                    # Print out nodes
+                    for n in network:
+                        cpt_headers = []
+                        print "\nName: " + n.name
+                        print "Status " + n.status
+                        print "Children: " + ",".join(map(str, n.children()))
+                        print "Parents: " + ",".join(map(str, n.parents()))
+                        [cpt_headers.append("Parent " + str(x)) for x in xrange(1, len(n.parents()) + 1)]
+                        cpt_headers.append("P(n)")
+                        print "CPT: \n\n" + tabulate(n.cpt, headers=cpt_headers) + "\n\n========================="
         else:
             # Throw error when cannot open file
             print("Input file does not exist.")
