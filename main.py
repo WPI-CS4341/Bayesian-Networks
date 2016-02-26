@@ -1,5 +1,107 @@
+import sys
+import os
+import numpy
+
+from node import Node
+
+
+def assignStatus(filename, input_nodes):
+    # Read each line of status file
+    if os.path.isfile(filename):
+        with open(filename, "r") as infile:
+            # Get first line of input file and split using commas
+            line = infile.readline().strip().split(",")
+            # Iterate through all nodes/statuses
+            for i in xrange(0, len(input_nodes)):
+                # Assign the status if it is not null
+                if len(line[i].strip()) > 0:
+                    input_nodes[i].status = line[i].strip()
+    else:
+        # Throw error when cannot open file
+        print("Input file does not exist.")
+        return False
+
+
 def main():
-    print ""
+    # Read command line arguments
+    args = sys.argv[1:]
+    # More than 1 argument supplied
+    if len(args) > 1:
+        # Get data filename
+        node_filename = args[0]
+        status_filename = args[1]
+        # Read each line of node file
+        if os.path.isfile(node_filename):
+            with open(node_filename, "r") as infile:
+                nodes_d = {}
+                names = []
+                for line in infile:
+                    # Strip the line of newlines and tabs
+                    line = line.strip()
+                    # Get the node name
+                    name = line[:line.index(":")]
+                    # Get the node list
+                    b1 = line.index("[") + 1
+                    b2 = line.index("]", b1)
+                    g1 = line[b1:b2]
+                    parents = g1.split(" ") if len(g1) > 0 else []
+                    # Get the conditional probability table values
+                    b3 = line.index("[", b2) + 1
+                    b4 = line.index("]", b3)
+                    g2 = line[b3:b4]
+                    cptv = g2.split(" ") if len(g2) > 0 else []
+                    # Convert the CPTVs into a table
+                    table = []
+                    for i in xrange(0, len(cptv)):
+                        row = []
+                        for j in xrange(0, len(parents)):
+                            # Create a binary mask for isolating the boolean
+                            # value
+                            mask = pow(2, j)
+                            # Apply the mask to the index of the CPTV
+                            result = i & mask
+                            # Resolve the mask result to a 1 (true) or 0
+                            # (false) and add it to the row
+                            row.append(1 if result else 0)
+                        # Add the CPT value to the end of the row
+                        row.append(float(cptv[i]))
+                        table.append(row)
+                    table = numpy.array(table)
+                    # Write info to node
+                    this_node = nodes_d[name] if name in nodes_d else Node(name)
+                    this_node.addCPT(table)
+                    # Generate parent nodes_d if they don't exist
+                    for parent in parents:
+                        parent_node = nodes_d[
+                            parent] if parent in nodes_d else Node(parent)
+                        # Add current node to the children of parent nodes_d
+                        parent_node.addChild(this_node)
+                        nodes_d[parent] = parent_node
+                    nodes_d[name] = this_node
+                    names.append(name)
+
+                # Convert the dictionary into a sorted array for processing
+                node_a = []
+                for name in names:
+                    if name in nodes_d:
+                        node_a.append(nodes_d[name])
+
+                # Assign statuses in place
+                assignStatus(status_filename, node_a)
+
+                # Print out nodes
+                for n in node_a:
+                    print "\nName: " + n.name
+                    print "Status " + n.status
+                    print "Children: " + ",".join(map(str, n.children()))
+                    print "Parents: " + ",".join(map(str, n.parents()))
+                    print "CPT: \n" + str(n.cpt) + "\n\n--------------------------------"
+        else:
+            # Throw error when cannot open file
+            print("Input file does not exist.")
+    else:
+        # Show usage when not providing enough argument
+        print("Usage: python main.py <filename>")
 
 
 if __name__ == '__main__':
