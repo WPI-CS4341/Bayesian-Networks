@@ -11,7 +11,7 @@
 
 - [ ] 5. (10 Points) Write a function that takes in the number of samples as an argument and performs likelihood-weighting sampling on your bayesian network and returns the value.
 
-- [ ] 6. (5 Points) Write a main method that parses the two filenames and the number of samples to use from the command line, constructs a bayesian network data structure based on the first file, assigns the status of each node based on the second file, and reports the calculated probability of both rejection and likelihood weighted sampling given the provided number of samples (by printing each probability out).  You may assume that the program will be run in the following manner (for Python).  Java, C, or C++ will follow the same general pattern.
+- [x] 6. (5 Points) Write a main method that parses the two filenames and the number of samples to use from the command line, constructs a bayesian network data structure based on the first file, assigns the status of each node based on the second file, and reports the calculated probability of both rejection and likelihood weighted sampling given the provided number of samples (by printing each probability out).  You may assume that the program will be run in the following manner (for Python).  Java, C, or C++ will follow the same general pattern.
 python your_program.py network_file query_file num_samples
 
 
