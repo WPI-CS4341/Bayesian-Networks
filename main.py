@@ -7,15 +7,13 @@ import networkx as nx
 from node import Node
 from tabulate import tabulate
 
-DEBUG = True
+DEBUG = False
 
 
 def prior_sample(bn):
     """
     Generates random sample from prior distribution
     """
-    # Collection of random ramples
-    randoms = [random.uniform(0, 1) for _ in xrange(len(bn))]
     # Sort the nodes in the order to dependencies
     # (e.g. for every u => v, u comes before v)
     ts = [bn.node[s]['obj'] for s in nx.topological_sort(bn)]
@@ -23,13 +21,13 @@ def prior_sample(bn):
     i = 0
     # Iterate through the nodes of the Bayesian network
     for node in ts:
-        r = randoms[i]
+        r = random.uniform(0, 1)
+        v = None
         # If the node has parents
         if len(node.parents()) > 0:
             parent_n = [n.name for n in node.parents()]  # Parent names
             parent_p = [assignments[p]
                         for p in parent_n if p in assignments]  # Parent probabilities
-            p = None
             # Pull out the row of the CPT matching the current parent
             # assignments
             for row in node.cpt:
@@ -78,12 +76,15 @@ def get_query_evidence(bn):
 
 def rejection_sampling(X, e, bn, N):
     n = {True: 0, False: 0}
+    count = 0
     for j in xrange(0, N):
         x = prior_sample(bn)
         if is_consistent(x, e):
             b = x[X]
             n[b] += 1
-    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()}
+        else:
+            count += 1
+    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()} if sum(n.values()) > 0 else {}
 
 
 def assign_status(filename, network):
