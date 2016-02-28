@@ -2,7 +2,7 @@ class Node(object):
 
     TRUE = 't'
     FALSE = 'f'
-    QUERY = 'q'
+    QUERY = '?'
     NOTHING = '-'
 
     def __init__(self, name):

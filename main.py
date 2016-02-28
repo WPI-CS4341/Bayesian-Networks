@@ -7,7 +7,7 @@ import networkx as nx
 from node import Node
 from tabulate import tabulate
 
-DEBUG = False
+DEBUG = True
 
 
 def prior_sample(bn):
@@ -83,11 +83,6 @@ def rejection_sampling(X, e, bn, N):
         if is_consistent(x, e):
             b = x[X]
             n[b] += 1
-        # else:
-        #     print x
-        #     print e
-        #     print '\n'
-    # print n
     return {k: float(v) / sum(n.values()) for k, v in n.iteritems()}
 
 
@@ -191,12 +186,13 @@ def main():
                         print "Status " + n.status
                         print "Children: " + ",".join(map(str, n.children()))
                         print "Parents: " + ",".join(map(str, n.parents()))
-                        [cpt_headers.append("Parent " + str(x))
-                         for x in xrange(1, len(n.parents()) + 1)]
+                        [cpt_headers.append(x.name)
+                         for x in n.parents()]
                         cpt_headers.append("P(n)")
                         print "CPT: \n\n" + tabulate(n.cpt, headers=cpt_headers) + "\n\n========================="
 
                 qe = get_query_evidence(network)
+                print "P(" + qe['X'] + "|" + ','.join(qe['e']) + ") = "
                 print rejection_sampling(qe['X'], qe['e'], network, int(num_samples))
 
         else:
