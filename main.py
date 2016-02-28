@@ -23,37 +23,72 @@ def prior_sample(bn):
     i = 0
     # Iterate through the nodes of the Bayesian network
     for node in ts:
-        n = randoms[i]
+        r = randoms[i]
         # If the node has parents
         if len(node.parents()) > 0:
             parent_n = [n.name for n in node.parents()]  # Parent names
-            parent_p = [assignments[p] for p in parent_n if p in assignments]  # Parent probabilities
+            parent_p = [assignments[p]
+                        for p in parent_n if p in assignments]  # Parent probabilities
             p = None
-            # Pull out the row of the CPT matching the current parent assignments
+            # Pull out the row of the CPT matching the current parent
+            # assignments
             for row in node.cpt:
                 match = True
                 for i in xrange(0, len(node.parents())):
                     if row[i] != parent_p[i]:
                         match = False
                 if match:
-                    p = row
+                    p = row[-1]
             # Create a new assignment with the probability
-            assignments[node.name] = True if n < p else False
+            assignments[node.name] = True if r < p else False
         else:
             # Just add the singular probability if no
-            assignments[node.name] = True if n < node.cpt[0][0] else False
+            assignments[node.name] = True if r < node.cpt[0][0] else False
         i += 1
-    print assignments
     return assignments
 
 
+def is_consistent(x, e):
+    consistent = True
+    for n in x:
+        if n in e and x[n] != e[n]:
+            consistent = False
+    return consistent
+
+
+def get_query_evidence(bn):
+    """
+    Takes in a network and returns a dictionary of the query variable
+    + evidence nodes, mapping their names to their values
+    (i.e. {X: <query_var>, e: {<evid_var>: <evid_value})
+    """
+    a = {}
+    e = {}
+    for n in bn.nodes():
+        node = bn.node[n]['obj']
+        if node.status == Node.TRUE:
+            e[node.name] = True
+        elif node.status == Node.FALSE:
+            e[node.name] = False
+        elif node.status == Node.QUERY:
+            a['X'] = node.name
+        a['e'] = e
+    return a
+
+
 def rejection_sampling(X, e, bn, N):
-    n = []
-    for j in xrange(1, N):
+    n = {True: 0, False: 0}
+    for j in xrange(0, N):
         x = prior_sample(bn)
-        if x is not e:
-            n[j] += 1
-    return [float(i) / len(e) for i in n]
+        if is_consistent(x, e):
+            b = x[X]
+            n[b] += 1
+        # else:
+        #     print x
+        #     print e
+        #     print '\n'
+    # print n
+    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()}
 
 
 def assign_status(filename, network):
@@ -161,8 +196,8 @@ def main():
                         cpt_headers.append("P(n)")
                         print "CPT: \n\n" + tabulate(n.cpt, headers=cpt_headers) + "\n\n========================="
 
-                prior_sample(network)
-                # print rejection_sampling(network)
+                qe = get_query_evidence(network)
+                print rejection_sampling(qe['X'], qe['e'], network, int(num_samples))
 
         else:
             # Throw error when cannot open file
