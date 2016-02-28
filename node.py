@@ -9,6 +9,7 @@ class Node(object):
         self.name = name
         self.status = self.NOTHING
         self.cpt = []
+        self.index = None
         self.__children = []
         self.__parents = []
         return

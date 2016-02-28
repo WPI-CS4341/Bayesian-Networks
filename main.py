@@ -1,22 +1,67 @@
 import sys
+import operator
 import os
+import random
+import networkx as nx
 
 from node import Node
 from tabulate import tabulate
 
-DEBUG = True
+DEBUG = False
 
-def assignStatus(filename, input_nodes):
+
+def prior_sample(bn):
+    x = []
+    randoms = [random.uniform(0, 1) for _ in xrange(len(bn))]
+    ts = [bn.node[s]['obj'] for s in nx.topological_sort(bn)]
+    assignments = {}
+    i = 0
+    # Iterate through the nodes of the Bayesian network
+    for node in ts:
+        n = randoms[i]
+        if len(node.parents()) > 0:
+            parent_n = [n.name for n in node.parents()]
+            parent_p = [assignments[p] for p in parent_n if p in assignments]
+            p = None
+            for row in node.cpt:
+                match = True
+                for i in xrange(0, len(node.parents())):
+                    if row[i] != parent_p[i]:
+                        match = False
+                if match:
+                    p = row
+            assignments[node.name] = True if n < p else False
+        else:
+            assignments[node.name] = True if n < node.cpt[0][0] else False
+        i += 1
+    print assignments
+    return assignments
+
+
+def rejection_sampling(X, e, bn, N):
+    n = []
+    for j in xrange(1, N):
+        x = prior_sample(bn)
+        if x is not e:
+            n[j] += 1
+    return [float(i) / len(e) for i in n]
+
+
+def assign_status(filename, network):
     # Read each line of status file
     if os.path.isfile(filename):
         with open(filename, "r") as infile:
             # Get first line of input file and split using commas
             line = infile.readline().strip().split(",")
             # Iterate through all nodes/statuses
-            for i in xrange(0, len(input_nodes)):
+            nodes = [x[1]['obj'] for x in network.nodes(data=True)]
+            sorted_nodes = sorted(nodes, key=operator.attrgetter('index'))
+            for i in xrange(0, len(sorted_nodes)):
+                node = sorted_nodes[i]
                 # Assign the status if it is not null
                 if len(line[i].strip()) > 0:
-                    input_nodes[i].status = line[i].strip()
+                    node.status = line[i].strip()
+                    network.node[node.name]['obj'] = node
     else:
         # Throw error when cannot open file
         print("Input file does not exist.")
@@ -27,15 +72,16 @@ def main():
     # Read command line arguments
     args = sys.argv[1:]
     # More than 1 argument supplied
-    if len(args) > 1:
+    if len(args) > 2:
         # Get data filename
-        node_filename = args[0]
-        status_filename = args[1]
+        network_file = args[0]
+        query_file = args[1]
+        num_samples = args[2]
         # Read each line of node file
-        if os.path.isfile(node_filename):
-            with open(node_filename, "r") as infile:
-                nodes = {}
-                names = []
+        if os.path.isfile(network_file):
+            with open(network_file, "r") as infile:
+                nodes = {}  # Node dictionary
+                index = 0
                 for line in infile:
                     # Strip the line of newlines and tabs
                     line = line.strip()
@@ -69,6 +115,7 @@ def main():
                         table.append(row)
                     # Write info to node
                     this_node = nodes[name] if name in nodes else Node(name)
+                    this_node.index = index
                     this_node.addCPT(table)
                     # Generate parent nodes if they don't exist
                     for parent in parents:
@@ -78,34 +125,42 @@ def main():
                         parent_node.addChild(this_node)
                         nodes[parent] = parent_node
                     nodes[name] = this_node
-                    names.append(name)
+                    index += 1
 
                 # Convert the dictionary into a sorted array for processing
-                network = []
-                for name in names:
-                    if name in nodes:
-                        network.append(nodes[name])
-
+                network = nx.DiGraph()
+                for n in nodes:
+                    node = nodes[n]
+                    parents = node.parents()
+                    network.add_node(node.name, obj=node)
+                    for p in parents:
+                        network.add_edge(p.name, node.name)
                 # Assign statuses in place
-                assignStatus(status_filename, network)
+                assign_status(query_file, network)
 
                 if DEBUG:
                     # Print out nodes
-                    for n in network:
+                    for node in nodes:
+                        n = nodes[node]
                         cpt_headers = []
                         print "\nName: " + n.name
                         print "Status " + n.status
                         print "Children: " + ",".join(map(str, n.children()))
                         print "Parents: " + ",".join(map(str, n.parents()))
-                        [cpt_headers.append("Parent " + str(x)) for x in xrange(1, len(n.parents()) + 1)]
+                        [cpt_headers.append("Parent " + str(x))
+                         for x in xrange(1, len(n.parents()) + 1)]
                         cpt_headers.append("P(n)")
                         print "CPT: \n\n" + tabulate(n.cpt, headers=cpt_headers) + "\n\n========================="
+
+                prior_sample(network)
+                # print rejection_sampling(network)
+
         else:
             # Throw error when cannot open file
             print("Input file does not exist.")
     else:
         # Show usage when not providing enough argument
-        print("Usage: python main.py <filename>")
+        print("Usage: python main.py <network_file> <query_file> <num_samples>")
 
 
 if __name__ == '__main__':
