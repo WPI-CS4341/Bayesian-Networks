@@ -11,18 +11,25 @@ DEBUG = False
 
 
 def prior_sample(bn):
-    x = []
+    """
+    Generates random sample from prior distribution
+    """
+    # Collection of random ramples
     randoms = [random.uniform(0, 1) for _ in xrange(len(bn))]
+    # Sort the nodes in the order to dependencies
+    # (e.g. for every u => v, u comes before v)
     ts = [bn.node[s]['obj'] for s in nx.topological_sort(bn)]
     assignments = {}
     i = 0
     # Iterate through the nodes of the Bayesian network
     for node in ts:
         n = randoms[i]
+        # If the node has parents
         if len(node.parents()) > 0:
-            parent_n = [n.name for n in node.parents()]
-            parent_p = [assignments[p] for p in parent_n if p in assignments]
+            parent_n = [n.name for n in node.parents()]  # Parent names
+            parent_p = [assignments[p] for p in parent_n if p in assignments]  # Parent probabilities
             p = None
+            # Pull out the row of the CPT matching the current parent assignments
             for row in node.cpt:
                 match = True
                 for i in xrange(0, len(node.parents())):
@@ -30,8 +37,10 @@ def prior_sample(bn):
                         match = False
                 if match:
                     p = row
+            # Create a new assignment with the probability
             assignments[node.name] = True if n < p else False
         else:
+            # Just add the singular probability if no
             assignments[node.name] = True if n < node.cpt[0][0] else False
         i += 1
     print assignments
