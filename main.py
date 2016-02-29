@@ -117,6 +117,7 @@ def rejection_sampling(X, e, bn, N):
     """
     Runs rejection sampling
     (i.e. rejects all samples that aren't consistent with the evidence)
+    Returns None if a divide-by-zero error is imminent
     """
     n = {True: 0, False: 0}
     # For the number of samples N
@@ -127,7 +128,7 @@ def rejection_sampling(X, e, bn, N):
         if is_consistent(x, e):
             b = x[X]
             n[b] += 1
-    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()} if sum(n.values()) > 0 else False
+    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()} if sum(n.values()) > 0 else None
 
 
 def assign_status(filename, network):
@@ -238,7 +239,8 @@ def main():
                 qe = get_query_evidence(network)
                 query = "P(" + qe['X'] + "|" + ','.join(qe['e']) + ")"
                 rs = rejection_sampling(
-                    qe['X'], qe['e'], network, int(num_samples))[True]
+                    qe['X'], qe['e'], network, int(num_samples))
+                rs = '-' if not rs else rs[True]
                 print '\n' + tabulate([[query, rs]], ["Query", "RS"])
 
         else:
