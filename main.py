@@ -10,6 +10,53 @@ from tabulate import tabulate
 DEBUG = False
 
 
+def get_p_given_parents(node, assignments):
+    """
+    Gets table rows matching certain parent values
+    """
+    parent_n = [n.name for n in node.parents()]  # Parent names
+    parent_p = [assignments[p]
+                for p in parent_n if p in assignments]  # Parent probabilities
+    # Pull out the row of the CPT matching the current parent
+    # assignments
+    for row in node.cpt:
+        match = True
+        for i in xrange(0, len(parent_p)):
+            if row[i] != parent_p[i]:
+                match = False
+        if match:
+            p = row[-1]
+    return p
+
+
+# def weighted_sample(bn, e):
+#     """
+#     Generates weighted sample
+#     """
+#     # Sort the nodes in the order to dependencies
+#     # (e.g. for every u => v, u comes before v)
+#     ts = [bn.node[s]['obj'] for s in nx.topological_sort(bn)]
+#     assignments = {}
+#     i = 0
+#     w = 1
+#     # Iterate through the nodes of the Bayesian network
+#     for node in ts:
+#         r = random.uniform(0, 1)
+#         # If node is in the evidence
+#         if node.name in e:
+#             w *=
+#         # If the node has parents
+#         if len(node.parents()) > 0:
+#             # Calculate the probability given parent values
+#             p = get_p_given_parents(node, assignments)
+#             assignments[node.name] = True if r < p else False
+#         else:
+#             # Just add the singular probability if no
+#             assignments[node.name] = True if r < node.cpt[0][0] else False
+#         i += 1
+#     return assignments
+
+
 def prior_sample(bn):
     """
     Generates random sample from prior distribution
@@ -22,31 +69,23 @@ def prior_sample(bn):
     # Iterate through the nodes of the Bayesian network
     for node in ts:
         r = random.uniform(0, 1)
-        v = None
         # If the node has parents
         if len(node.parents()) > 0:
-            parent_n = [n.name for n in node.parents()]  # Parent names
-            parent_p = [assignments[p]
-                        for p in parent_n if p in assignments]  # Parent probabilities
-            # Pull out the row of the CPT matching the current parent
-            # assignments
-            for row in node.cpt:
-                match = True
-                for i in xrange(0, len(node.parents())):
-                    if row[i] != parent_p[i]:
-                        match = False
-                if match:
-                    p = row[-1]
-            # Create a new assignment with the probability
+            # Calculate the probability given parent values
+            p = get_p_given_parents(node, assignments)
             assignments[node.name] = True if r < p else False
         else:
-            # Just add the singular probability if no
+            # Just add the singular probability if not
             assignments[node.name] = True if r < node.cpt[0][0] else False
         i += 1
     return assignments
 
 
 def is_consistent(x, e):
+    """
+    Checks for consistency
+    (e.g. if e[n] is v, then x[n] must also be v)
+    """
     consistent = True
     for n in x:
         if n in e and x[n] != e[n]:
@@ -75,16 +114,20 @@ def get_query_evidence(bn):
 
 
 def rejection_sampling(X, e, bn, N):
+    """
+    Runs rejection sampling
+    (i.e. rejects all samples that aren't consistent with the evidence)
+    """
     n = {True: 0, False: 0}
-    count = 0
+    # For the number of samples N
     for j in xrange(0, N):
+        # Generate a prior sample
         x = prior_sample(bn)
+        # Increment boolean count if x is consistent with the evidence
         if is_consistent(x, e):
             b = x[X]
             n[b] += 1
-        else:
-            count += 1
-    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()} if sum(n.values()) > 0 else {}
+    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()} if sum(n.values()) > 0 else False
 
 
 def assign_status(filename, network):
@@ -193,8 +236,10 @@ def main():
                         print "CPT: \n\n" + tabulate(n.cpt, headers=cpt_headers) + "\n\n========================="
 
                 qe = get_query_evidence(network)
-                print "P(" + qe['X'] + "|" + ','.join(qe['e']) + ") = "
-                print rejection_sampling(qe['X'], qe['e'], network, int(num_samples))
+                query = "P(" + qe['X'] + "|" + ','.join(qe['e']) + ")"
+                rs = rejection_sampling(
+                    qe['X'], qe['e'], network, int(num_samples))[True]
+                print '\n' + tabulate([[query, rs]], ["Query", "RS"])
 
         else:
             # Throw error when cannot open file
