@@ -267,7 +267,6 @@ def main():
                 rs = '-' if not rs else rs[True]
 
                 # Run liklihood weighting
-                l, w = weighted_sample(network, qe['e'])
                 lw = likelihood_weighting(qe['X'], qe['e'], network, int(num_samples))
                 lw = '-' if not lw else lw[True]
 
