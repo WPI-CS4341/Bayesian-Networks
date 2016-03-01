@@ -13,6 +13,7 @@ DEBUG = False
 def get_p_given_parents(node, assignments):
     """
     Gets table rows matching certain parent values
+    (specified in assignments variable)
     """
     parent_n = [n.name for n in node.parents()]  # Parent names
     parent_p = [assignments[p]
@@ -29,32 +30,44 @@ def get_p_given_parents(node, assignments):
     return p
 
 
-# def weighted_sample(bn, e):
-#     """
-#     Generates weighted sample
-#     """
-#     # Sort the nodes in the order to dependencies
-#     # (e.g. for every u => v, u comes before v)
-#     ts = [bn.node[s]['obj'] for s in nx.topological_sort(bn)]
-#     assignments = {}
-#     i = 0
-#     w = 1
-#     # Iterate through the nodes of the Bayesian network
-#     for node in ts:
-#         r = random.uniform(0, 1)
-#         # If node is in the evidence
-#         if node.name in e:
-#             w *=
-#         # If the node has parents
-#         if len(node.parents()) > 0:
-#             # Calculate the probability given parent values
-#             p = get_p_given_parents(node, assignments)
-#             assignments[node.name] = True if r < p else False
-#         else:
-#             # Just add the singular probability if no
-#             assignments[node.name] = True if r < node.cpt[0][0] else False
-#         i += 1
-#     return assignments
+def weighted_sample(bn, e):
+    """
+    Generates weighted sample
+    """
+    # Sort the nodes in the order to dependencies
+    # (e.g. for every u => v, u comes before v)
+    ts = [bn.node[s]['obj'] for s in nx.topological_sort(bn)]
+    assignments = {}
+    i = 0
+    w = 1
+    v = None
+    # Iterate through the nodes of the Bayesian network
+    for node in ts:
+        r = random.uniform(0, 1)
+        p = r
+        # If the node has parents
+        if len(node.parents()) > 0:
+            # Calculate the probability given parent values
+            p = get_p_given_parents(node, assignments)
+        else:
+            # Just add the singular probability if no
+            p = node.cpt[0][0]
+        # If node is in the evidence
+        if node.name in e:
+            w *= (1 - p) if e[node.name] is False else p
+        else:
+            assignments[node.name] = True if r < p else False
+        i += 1
+    return assignments, w
+
+
+def likelihood_weighting(X, e, bn, N):
+    W = {True: 0, False: 0}
+    for j in xrange(0, N):
+        x, w = weighted_sample(bn, e)
+        b = x[X]
+        W[b] += w
+    return normalize(W)
 
 
 def prior_sample(bn):
@@ -69,14 +82,15 @@ def prior_sample(bn):
     # Iterate through the nodes of the Bayesian network
     for node in ts:
         r = random.uniform(0, 1)
+        p = r
         # If the node has parents
         if len(node.parents()) > 0:
             # Calculate the probability given parent values
             p = get_p_given_parents(node, assignments)
-            assignments[node.name] = True if r < p else False
         else:
             # Just add the singular probability if not
-            assignments[node.name] = True if r < node.cpt[0][0] else False
+            p = node.cpt[0][0]
+        assignments[node.name] = True if r < p else False
         i += 1
     return assignments
 
@@ -113,6 +127,10 @@ def get_query_evidence(bn):
     return a
 
 
+def normalize(d):
+    return {k: float(v) / sum(d.values()) for k, v in d.iteritems()} if sum(d.values()) > 0 else None
+
+
 def rejection_sampling(X, e, bn, N):
     """
     Runs rejection sampling
@@ -128,7 +146,7 @@ def rejection_sampling(X, e, bn, N):
         if is_consistent(x, e):
             b = x[X]
             n[b] += 1
-    return {k: float(v) / sum(n.values()) for k, v in n.iteritems()} if sum(n.values()) > 0 else None
+    return normalize(n)
 
 
 def assign_status(filename, network):
@@ -238,10 +256,19 @@ def main():
 
                 qe = get_query_evidence(network)
                 query = "P(" + qe['X'] + "|" + ','.join(qe['e']) + ")"
+
+                # Run rejection sampling
                 rs = rejection_sampling(
                     qe['X'], qe['e'], network, int(num_samples))
                 rs = '-' if not rs else rs[True]
-                print '\n' + tabulate([[query, rs]], ["Query", "RS"])
+
+                # Run liklihood weighting
+                l, w = weighted_sample(network, qe['e'])
+                lw = likelihood_weighting(qe['X'], qe['e'], network, int(num_samples))
+                lw = '-' if not lw else lw[True]
+
+                # Print result table
+                print '\n' + tabulate([[query, rs, lw]], ["Query", "RS", "LW"])
 
         else:
             # Throw error when cannot open file
