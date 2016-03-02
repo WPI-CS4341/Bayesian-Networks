@@ -1,6 +1,8 @@
 # Bayesian Network in Python
 A [Bayesian network](https://en.wikipedia.org/wiki/Bayesian_network) is a network (denoted through a directed graph) which illustrates the relationships between a set of random variables given their conditional probabilistic dependencies. In this program, we create a Bayesian network using Python 2.7 which consists of a set of given variables and their conditional probability tables. The program can then read in query files to compute queries on the network using [rejection sampling](https://en.wikipedia.org/wiki/Rejection_sampling) and likelihood weighting.
 
+*Developer's note: for this program, "Option B" was implemented.*
+
 ## Before Running The Program
 This program uses the [tabulate](https://pypi.python.org/pypi/tabulate) and [networkx](https://networkx.github.io) libraries for output formatting and graph creation/sorting. But don't worry! It's simple to get these libraries installed (in one command too!). Just `cd` into the source directory and run:
 
